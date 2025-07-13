@@ -1,4 +1,5 @@
 requests
-beautifulsoup4
+beautifulsoup4==4.12.3
 networkx
 matplotlib
+ipykernel

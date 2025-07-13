@@ -20,3 +20,14 @@ STEP 3: integrate & download
 
 STEP 4: export
 - 
+
+
+POST_OBJECT:
+- id:               str
+- title:            str
+- content_links:    list
+- media_links:      list
+- soup:             bs4.BeautifulSoup
+- comments:         list
+- has_media_links:  bool
+- depth:            int

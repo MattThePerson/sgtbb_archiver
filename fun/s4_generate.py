@@ -20,10 +20,10 @@ def generate_html_pages(post_objects: dict[str, Any]):
     
     sitedir = 'site'
     
-    # remove deleted posts
+    # remove deleted posts and filter content links
     for post_id in list(post_objects.keys()):
         obj = post_objects[post_id]
-        obj['content_links'] = list(set([x for x in obj['content_links'] if get_post_id(x) != post_id]))
+        obj['content_links'] = list(set([ x for x in obj['content_links'] if get_post_id(x) != post_id ]))
         if obj['media_links'] == [] and obj['content_links'] == []:
             del post_objects[post_id]
         else:
@@ -31,12 +31,13 @@ def generate_html_pages(post_objects: dict[str, Any]):
     
     for idx, (post_id, obj) in enumerate(post_objects.items()):
         if obj['depth'] == 0 or True:
-            fp = get_post_filepath(obj)
+            dirname = get_post_dirname(obj)
+            fp = os.path.join( dirname, '[{}] {}.html'.format(obj['id'], obj['title']) )
             content_links, media_links = obj['content_links'], obj['media_links']
             top_str = 'MEDIA' if media_links != [] else '     '
             inter_str = 'INTER' if len(content_links) > 2 and obj['depth'] > 0 else '     '
-            dirname = get_post_dirname(obj)
-            print('{:<3}: {:<6} : c={:<3} : m={:<3} : {} : {} : <{:<6}> : "{}"'.format(idx+1, '|-'*(obj['depth']+1), len(content_links), len(media_links), top_str, inter_str, dirname, fp))
+            print('{:<3}: {:<6} : c={:<3} : m={:<3} : {} : {} : <{:<6}> : "{}"'
+                .format(idx+1, '|-'*(obj['depth']+1), len(content_links), len(media_links), top_str, inter_str, dirname, fp))
             fp = os.path.join(sitedir, fp)
             generate_post_page(fp, obj, post_objects)
 

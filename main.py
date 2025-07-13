@@ -10,14 +10,13 @@ This script does the following:
 
 """
 import argparse
-import json
 import pickle
 import os
+import json
 
-from pprint import pprint
-
-from fun.s1_scrape import fetch_post_network
-from fun.s2_generate import generate_html_pages
+from fun.s1_scrape import download_post_network_catalogue_pages
+# from fun.s4_generate import generate_html_pages
+from fun import s1_scrape, s2_parse, s4_generate
 
 
 # Primary URLS
@@ -40,29 +39,48 @@ root_urls = [
 ]
 
 
-def main(args, download_dir, export_dir):
+#reigon - MAIN ---------------------------------------------------------------------------------------------------------
+
+def main(args):
     
-    if args.scrape_post_network:
+    
+    if args.scrape_post_network: # - [STEP 1] SCRAPE -----------------------------------------------
         print('Scraping post network ...')
         global root_urls
-        posts_dict = fetch_post_network(root_urls, quiet=args.quiet, pause_between=args.pause_between, pause_timeout=args.pause_timeout)
-        save_post_network(posts_dict)
-    
-    
+        posts_dict = s1_scrape.download_post_network_catalogue_pages(
+            root_urls, 
+            'src', 
+            redo_scraping=args.redo_scraping, 
+            quiet=args.quiet, 
+            pause_between=args.pause_between, 
+            pause_timeout=args.pause_timeout,
+        )
+
+
+    if args.parse_post_data: # - [STEP 2] PARSE ----------------------------------------------------
+        catalogue_pages = os.listdir('site/catalogue')
+        media_pages = os.listdir('site/meida_page')
+        data = s2_parse.parse_data_from_html_pages(catalogue_pages, media_pages)
+        _save_json_dated(data)
+
+
+
+    if args.download_media: # - [STEP 3] DOWNLOAD --------------------------------------------------
+        ...
+
+
+    if args.generate_html_pages: # - [STEP 4] GENERATE ---------------------------------------------
+        ...
+
+
+
     saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.pkl')], reverse=True)
+
     if args.list_saved:
         print('SAVED POST OBJECTS:')
         for idx, fn in enumerate(saved_data_filenames):
             print('{:>3} : "{}"'.format(idx+1, fn))
     
-    
-    
-    if args.generate_html: # -select
-        posts_dict = load_post_network(saved_data_filenames[args.select-1])
-        if posts_dict:
-            generate_html_pages(posts_dict)
-        
-        
     
     if args.integrate: # -download
         ...
@@ -73,16 +91,20 @@ def main(args, download_dir, export_dir):
 
 
 
+#reigon - HELPERS --------------------------------------------------------------------------------------------------------
 
 
+def _save_json_dated(data):
+    from datetime import datetime
+    dt = datetime.now().strftime(r'%Y-%m-%dT%H-%M-%S')
+    fn = f'data_{dt}.json'
+    print(fn)
+    fp = os.path.join( 'data', fn )
+    with open(fp, 'w') as f:
+        json.dump(data, f)
 
 
-
-
-#### MISC. HELPER FUNCTIONS ####
-
-
-def load_post_network(fn):
+def _load_post_network(fn):
     fp = os.path.join('data', fn)
     print('Loading data from: "{}"'.format(fp))
     try:
@@ -94,7 +116,8 @@ def load_post_network(fn):
         print(e)
         return None
 
-def save_post_network(dict):
+
+def _save_post_network(dict):
     from datetime import datetime
     dt = datetime.now().strftime(r'%Y-%m-%dT%H-%M-%S')
     fn = f'post_objects_{dt}.pkl'
@@ -102,32 +125,33 @@ def save_post_network(dict):
     fp = os.path.join( 'data', fn )
     with open(fp, 'wb') as f:
         pickle.dump(dict, f)
+        
 
+
+#reigon - START --------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Scraper and Downloader for the network of curated posts on r/SoGoodToBeBad")
     
     # parser.add_argument('-wtf', action='store_true', help='wtf')
-    parser.add_argument('--scrape-post-network', '-s1', action='store_true',    help='[STEP 1] Scrapes network of posts starting from the 3 root nodes')
-    parser.add_argument('--generate-html', '-s2', action='store_true',          help='[STEP 2] Generates hyperlinked HTML pages from scraped network (deletes old HTML pages)')
-    parser.add_argument('--integrate', '-s3', action='store_true',              help='[STEP 3] Changes HTML pages a-tags to point to local media')
-    parser.add_argument('--download', '-d', action='store_true',                help='[STEP 3] Attempts to download media for media links without local media into "media_directory" from settings.json')
-    parser.add_argument('--export', '-s4', action='store_true',                 help='[STEP 4] Copies HTML pages to "export_location" from settings.json')
+    parser.add_argument('-s1', '--scrape-post-network', action='store_true',    help='[STEP 1] Scrapes network of posts starting from the 3 root nodes, saves html files')
+    parser.add_argument('-s2', '--parse-post-data', action='store_true',        help='[STEP 2] Parses local html files for data')
+    parser.add_argument('-s3', '--download-media', action='store_true',         help='[STEP 3] Attempts to download media from media pages')
+    parser.add_argument('-s4', '--generate-html-pages', action='store_true',    help='[STEP 4] Generates html pages from parsed data, finding local media')
+    # parser.add_argument('-s5', '--', action='store_true',                 help='[STEP 4] Copies HTML pages to "export_location" from settings.json')
 
+    parser.add_argument('--select-page',                                        help='post_id which to use for parsing data, download media or generating html pages')
     parser.add_argument('--list-saved', action='store_true',                    help='List saved post networks')
-    parser.add_argument('--select', '-s',                                       help='Select which post objects to use (listed from newest to oldest) for STEP 2', type=int, default=1)
+    parser.add_argument('--redo-scraping', action='store_true',                 help='Suppresses normal printout from processes')
     parser.add_argument('--quiet', '-q', action='store_true',                   help='Suppresses normal printout from processes')
     parser.add_argument('--pause-between',                                      help='Number of seconds to pause between url requests', type=float, default=2)
     parser.add_argument('--pause-timeout',                                      help='Number of seconds to pause when recieved 429 status_code', type=float, default=60)
     
     args = parser.parse_args()
     
-    with open('settings.json', 'r') as f:
-        settings = json.load(f)
-    
     print()
     try:
-        main(args, settings.get('media_directory'), settings.get('export_location'))
+        main(args)
     except KeyboardInterrupt:
         print('\n... Interrupted by KeyboardInterrupt')
     print()

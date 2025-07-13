@@ -15,7 +15,13 @@ def get_page_id_and_title(url):
     return id_, title
 
 def get_post_id(url):
-    return get_page_id_and_title(url)[0]
+    c_parts = url.split('/comments/')
+    if len(c_parts) < 2:
+        c_parts = url.split('/duplicates/')
+        if len(c_parts) < 2:
+            print('ERROR: id: "{}"'.format(url))
+            return None
+    return c_parts[-1].split('/')[0]
 
 def is_user_post(href):
     return is_full_url(href) and ('/user/katiethebandit2/comments' in href or 'r/u_katiethebandit2/comments' in href)
