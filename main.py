@@ -16,7 +16,7 @@ import json
 
 from fun.s1_scrape import download_post_network_catalogue_pages
 # from fun.s4_generate import generate_html_pages
-from fun import s1_scrape, s2_parse, s4_generate
+from fun import s1_scrape, s2_parse, s3_download, s4_generate
 
 
 # Primary URLS
@@ -58,35 +58,62 @@ def main(args):
 
 
     if args.parse_post_data: # - [STEP 2] PARSE ----------------------------------------------------
-        catalogue_pages = os.listdir('site/catalogue')
-        media_pages = os.listdir('site/meida_page')
-        data = s2_parse.parse_data_from_html_pages(catalogue_pages, media_pages)
+        print('Parsing data from html pages ...')
+        catalogue_pages = _read_filepaths('src/catalogue')
+        media_pages = _read_filepaths('src/media_page')
+        print('cat pages: {}  media pages: {:_}'.format(len(catalogue_pages), len(media_pages)))
+
+        data = {
+            'catalogue_pages': s2_parse.parse_catalogue_pages(root_urls, catalogue_pages),
+            'media_pages': s2_parse.parse_media_pages(media_pages),
+        }
+        # _save_json(data)
         _save_json_dated(data)
 
 
+    # saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
 
     if args.download_media: # - [STEP 3] DOWNLOAD --------------------------------------------------
-        ...
+        print('Downloading media ...')
+        saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
+        data_fn = saved_data_filenames[0]
+        data = _load_json(data_fn)
+        # get catalogue pages to download media from
+        if args.select_page:
+            page = data['catalogue_pages'].get(args.select_page)
+            if page is None:
+                raise Exception('No page with id:', args.select_page)
+            catalogue_pages = [page]
+        else:
+            catalogue_pages = list(data['catalogue_pages'].values())
+        # get media links
+        media_links = []
+        for page in catalogue_pages:
+            media_links.extend(page['media_links'])
+        media_links = sorted(set(media_links))
+        succ, fail = s3_download.download_media_links(
+            media_links,
+            download_dir='site/media',
+            limit=args.limit_downloads,
+            redo_download=args.redo_downloads,
+            pause_between=args.pause_between,
+        )
+        _print_report(succ, fail, text='download media links')
 
 
     if args.generate_html_pages: # - [STEP 4] GENERATE ---------------------------------------------
-        ...
+        print('Generating HTML pages ...')
+        saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
 
 
 
-    saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.pkl')], reverse=True)
+    # saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.pkl')], reverse=True)
 
-    if args.list_saved:
-        print('SAVED POST OBJECTS:')
-        for idx, fn in enumerate(saved_data_filenames):
-            print('{:>3} : "{}"'.format(idx+1, fn))
+    # if args.list_saved:
+    #     print('SAVED POST OBJECTS:')
+    #     for idx, fn in enumerate(saved_data_filenames):
+    #         print('{:>3} : "{}"'.format(idx+1, fn))
     
-    
-    if args.integrate: # -download
-        ...
-    
-    if args.export:
-        ...
 
 
 
@@ -94,14 +121,31 @@ def main(args):
 #reigon - HELPERS --------------------------------------------------------------------------------------------------------
 
 
+def _read_filepaths(pth):
+    return [ os.path.join(pth, filename) for filename in os.listdir(pth) ]
+
+
+def _save_json(data):
+    fp = os.path.join( 'data', 'data.json' )
+    print('saving data to:', fp)
+    with open(fp, 'w') as f:
+        json.dump(data, f, indent=4)
+
+def _load_json(fn: str) -> dict:
+    fp = 'data/' + fn
+    print('loading data from:', fp)
+    with open(fp, 'r') as f:
+        data = json.load(f)
+    return data
+
 def _save_json_dated(data):
     from datetime import datetime
     dt = datetime.now().strftime(r'%Y-%m-%dT%H-%M-%S')
     fn = f'data_{dt}.json'
-    print(fn)
     fp = os.path.join( 'data', fn )
+    print('saving data to:', fp)
     with open(fp, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 
 def _load_post_network(fn):
@@ -128,24 +172,39 @@ def _save_post_network(dict):
         
 
 
+def _print_report(succ: list[str], fail: list[str], text: str='Work report'):
+    print('\nREPORT ON:', text)
+    print('  succ: ', len(succ))
+    print('  fail: ', len(fail))
+    if len(fail) > 0:
+        print('\nFAILS:')
+        for idx, item in enumerate(fail):
+            print('{:>5} : {}'.format(idx+1, item))
+    print()
+
+
 #reigon - START --------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Scraper and Downloader for the network of curated posts on r/SoGoodToBeBad")
     
-    # parser.add_argument('-wtf', action='store_true', help='wtf')
+    # STEP 1
     parser.add_argument('-s1', '--scrape-post-network', action='store_true',    help='[STEP 1] Scrapes network of posts starting from the 3 root nodes, saves html files')
+    parser.add_argument('--redo-scraping', action='store_true',                 help='Redo scraping of html files')
+    parser.add_argument('--pause-between',                                      help='Number of seconds to pause between url requests', type=float, default=2)
+    parser.add_argument('--pause-timeout',                                      help='Number of seconds to pause when recieved 429 status_code', type=float, default=60)
+    
     parser.add_argument('-s2', '--parse-post-data', action='store_true',        help='[STEP 2] Parses local html files for data')
+
     parser.add_argument('-s3', '--download-media', action='store_true',         help='[STEP 3] Attempts to download media from media pages')
+    parser.add_argument('--limit-downloads', type=int, default=None,            help='[STEP 3] Limit number of downloads to do')
+    parser.add_argument('--redo-downloads', action='store_true',                help='[STEP 3] Redo downloads even if there is local media')
+
     parser.add_argument('-s4', '--generate-html-pages', action='store_true',    help='[STEP 4] Generates html pages from parsed data, finding local media')
-    # parser.add_argument('-s5', '--', action='store_true',                 help='[STEP 4] Copies HTML pages to "export_location" from settings.json')
 
     parser.add_argument('--select-page',                                        help='post_id which to use for parsing data, download media or generating html pages')
     parser.add_argument('--list-saved', action='store_true',                    help='List saved post networks')
-    parser.add_argument('--redo-scraping', action='store_true',                 help='Suppresses normal printout from processes')
     parser.add_argument('--quiet', '-q', action='store_true',                   help='Suppresses normal printout from processes')
-    parser.add_argument('--pause-between',                                      help='Number of seconds to pause between url requests', type=float, default=2)
-    parser.add_argument('--pause-timeout',                                      help='Number of seconds to pause when recieved 429 status_code', type=float, default=60)
     
     args = parser.parse_args()
     

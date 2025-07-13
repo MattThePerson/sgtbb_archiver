@@ -4,7 +4,7 @@ from http.cookiejar import MozillaCookieJar
 import time
 import os
 
-from fun import fun
+from . import fun
 
 
 

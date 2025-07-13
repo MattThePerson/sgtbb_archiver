@@ -1,4 +1,4 @@
-
+import os
 
 
 def get_page_id_and_title(url):
@@ -43,4 +43,23 @@ def get_post_type(data, depth):
     elif len(data['media_links']) > 0:
         return 'top'
     return 'depth-' + str(depth)
+
+
+
+def get_page_id_from_filename(fp: str) -> str:
+    fn = os.path.basename(fp)
+    if ']' in fn:
+        return fn.split('[')[-1].split(']')[0]
+    return fn.split('.')[0]
+
+
+def get_page_id_and_title_from_filename(fn: str):
+    fn = os.path.basename(fn)
+    parts = fn.split('] ')
+    if len(parts) != 2:
+        print('ERROR: Unable to extract id and title from:', fn)
+        return None, None
+    id_ = parts[0].split('[')[-1]
+    title = parts[1].split('.')[0]
+    return id_, title
 
