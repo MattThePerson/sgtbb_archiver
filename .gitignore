@@ -16,4 +16,4 @@ test*
 *.ipynb
 .old/
 
-src/
+# src/

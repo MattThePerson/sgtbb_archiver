@@ -11,7 +11,7 @@
  * @property {string[]} media_links_local - 
  * @property {string} date_created - 
  * @property {string} title - 
- * @property {string} url - 
+ * @property {string} url partial url (must prepend reddit.com)
  * @property {string} author - 
  * @property {string} author_href - 
  * @property {string} content_html - 
@@ -105,6 +105,7 @@ function getPageContent(data) {
             <div>/</div>
         `;
     }
+    nav_html += /* html */`<div>${data.title}</div>`
     
     return /* html */ `
 
@@ -116,7 +117,7 @@ function getPageContent(data) {
         <main>
             <!-- LEFT SIDE -->
             <section class="left-section">
-                <a href="${data.url}">
+                <a href="https://www.reddit.com${data.url}" target="_blank">
                     <h1>${data.title}</h1>
                 </a>
                 <div class="content">
