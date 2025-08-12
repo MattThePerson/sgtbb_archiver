@@ -14,9 +14,7 @@ import pickle
 import os
 import json
 
-from fun.s1_scrape import download_post_network_catalogue_pages
-# from fun.s4_generate import generate_html_pages
-from fun import s1_scrape, s2_parse, s3_download, s4_generate
+from python_src import s1_scrape, s2_parse, s3_download, s4_generate
 
 
 # Primary URLS
@@ -71,13 +69,14 @@ def main(args):
         _save_json_dated(data)
 
 
-    # saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
 
     if args.download_media: # - [STEP 3] DOWNLOAD --------------------------------------------------
-        print('Downloading media ...')
+        print('Loading json ...')
         saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
         data_fn = saved_data_filenames[0]
         data = _load_json(data_fn)
+        print('Downloading media ...')
+
         # get catalogue pages to download media from
         if args.select_page:
             page = data['catalogue_pages'].get(args.select_page)
@@ -86,11 +85,18 @@ def main(args):
             catalogue_pages = [page]
         else:
             catalogue_pages = list(data['catalogue_pages'].values())
+            
         # get media links
         media_links = []
         for page in catalogue_pages:
             media_links.extend(page['media_links'])
         media_links = sorted(set(media_links))
+        if args.random_seed:
+            import random
+            random.seed(args.random_seed)
+            random.shuffle(media_links)
+        
+        # download
         succ, fail = s3_download.download_media_links(
             media_links,
             download_dir='site/media',
@@ -102,18 +108,14 @@ def main(args):
 
 
     if args.generate_html_pages: # - [STEP 4] GENERATE ---------------------------------------------
-        print('Generating HTML pages ...')
+        print('Loading json ...')
         saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.json')], reverse=True)
+        data_fn = saved_data_filenames[0]
+        data = _load_json(data_fn)
+        print('Generating html pages ...')
+        media_map = _getMediaFilesMap("site/media")
+        s4_generate.generateHtmlPages("site", data, media_map)
 
-
-
-    # saved_data_filenames = sorted([f for f in os.listdir('data/') if f.endswith('.pkl')], reverse=True)
-
-    # if args.list_saved:
-    #     print('SAVED POST OBJECTS:')
-    #     for idx, fn in enumerate(saved_data_filenames):
-    #         print('{:>3} : "{}"'.format(idx+1, fn))
-    
 
 
 
@@ -180,8 +182,18 @@ def _print_report(succ: list[str], fail: list[str], text: str='Work report'):
         print('\nFAILS:')
         for idx, item in enumerate(fail):
             print('{:>5} : {}'.format(idx+1, item))
+            # if idx > 15:
+            #     print('  ...')
+            #     break
     print()
 
+
+def _getMediaFilesMap(dir: str) -> dict[str, str]:
+    mp = {}
+    for file in os.listdir(dir):
+        sid = file.split(" [")[-1].split("].")[0]
+        mp[sid] = f"media/{file}"
+    return mp
 
 #reigon - START --------------------------------------------------------------------------------------------------------
 
@@ -205,6 +217,7 @@ if __name__ == '__main__':
     parser.add_argument('--select-page',                                        help='post_id which to use for parsing data, download media or generating html pages')
     parser.add_argument('--list-saved', action='store_true',                    help='List saved post networks')
     parser.add_argument('--quiet', '-q', action='store_true',                   help='Suppresses normal printout from processes')
+    parser.add_argument('--random-seed', type=int,                              help='Randomize arrays with seed')
     
     args = parser.parse_args()
     

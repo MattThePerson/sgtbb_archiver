@@ -4,6 +4,9 @@ venv/
 vscode/
 
 site*/
+!site/
+site/media
+site/pages
 data/*
 cookies/*
 
@@ -11,3 +14,5 @@ test*
 *.ipynb
 
 src/
+
+.old/
