@@ -12,22 +12,21 @@ def parse_catalogue_pages(root_urls: list[str], catalogue_page_paths: list[str])
     can be used fully to create the html page """
 
     # prepare required data
-    paths_queue = [] # tuple ( path, depth, parent_id )
+    paths_queue = [] # tuple ( path, depth, [parents] )
     for url in root_urls:
         id_, title = fun.get_page_id_and_title(url)
-        paths_queue.append( (f'src/catalogue/[{id_}] {title}.html', 0, 'home') )
+        paths_queue.append( (f'src/catalogue/[{id_}] {title}.html', 0, ['home']) )
     
     catalogue_pages = { fun.get_page_id_from_filename(pth): pth for pth in catalogue_page_paths }
     
     data = {}
     
-    # - PARSE CATALOGUE PAGES --------------------------------------------------
-
     touched = []
     handled = 0
     while paths_queue != []:
-        curr_filename, depth, parent_id = paths_queue.pop(0)
+        curr_filename, depth, parents = paths_queue.pop(0)
         curr_id, curr_title = fun.get_page_id_and_title_from_filename(curr_filename)
+        curr_parents = parents + [curr_id]
         print('  {:>4}  |  queue: {:<4}  |  HANDLING NODE  {}  [{}] "{}"'.format( handled, len(paths_queue), '|___'*depth, curr_id, curr_title ))
 
         soup = _get_page_as_soup(curr_filename)
@@ -38,7 +37,8 @@ def parse_catalogue_pages(root_urls: list[str], catalogue_page_paths: list[str])
             'id': curr_id,
             # 'title': curr_title,
             'depth': depth,
-            'parent': parent_id,
+            'parent': parents[-1],
+            'parents': parents,
             'media_links': media_links,
         }
         parsed_data = _parse_data_from_soup(soup)
@@ -57,7 +57,7 @@ def parse_catalogue_pages(root_urls: list[str], catalogue_page_paths: list[str])
             link_id, link_title = fun.get_page_id_and_title(link)
             if link_id and link_id not in touched and link_id != curr_id:
                 link_path = catalogue_pages[link_id]
-                paths_queue.append( (link_path, depth+1, curr_id) )
+                paths_queue.append( (link_path, depth+1, curr_parents) )
                 touched.append(link_id)
                 links_added += 1
                 print('{:>4}   {}   adding content link ({}): [{}] -> [{}] "{}" '.format(len(touched), '|___'*depth, links_added, curr_id, link_id, link_title))
@@ -71,19 +71,43 @@ def parse_catalogue_pages(root_urls: list[str], catalogue_page_paths: list[str])
 
 
 def parse_media_pages(media_page_paths: list[str]) -> dict:
-
-    # - PARSE MEDIA PAGES ------------------------------------------------------
-    
+    """  """
     data = {}
+    succ, fail = [], []
     
-    for idx, med_pth in enumerate(media_page_paths):
-        print('  ({:_}/{:_})  PARSING MEDIA PAGE  |  {}'.format(idx+1, len(media_page_paths), med_pth))
+    # import random
+    # random.seed(2)
+    # random.shuffle(media_page_paths)
+    
+    # media_page_paths = [ pth for pth in media_page_paths if '1ccpuds' in pth ]
 
-        page_id = fun.get_page_id_from_filename(med_pth)
-        obj = {
-            'id': page_id,
-        }
-        data[page_id] = obj
+    try:
+        for idx, med_pth in enumerate(media_page_paths):
+            print('  ({:_}/{:_})  PARSING MEDIA PAGE  |  {}'.format(idx+1, len(media_page_paths), med_pth))
+            page_id = fun.get_page_id_from_filename(med_pth)
+            soup = _get_page_as_soup(med_pth)
+            try:
+                parsed_data = _parse_data_from_media_page_soup(soup)
+            except Exception as e:
+                print('EXCEPTION: Unable to parse from soup:\n', e)
+                fail.append(med_pth)
+            else:
+                obj = {
+                    'id': page_id,
+                }
+                obj = obj | parsed_data
+                data[page_id] = obj
+                succ.append(med_pth)
+                # if idx > 10:
+                #     break
+    
+    except KeyboardInterrupt:
+        print('\n  ... interrupting')
+    
+    print('\nfails:', len(fail))
+    for idx, pth in enumerate(fail):
+        print('  {:>4} : {}'.format(idx+1, pth))
+    print()
 
     return data
 
@@ -120,6 +144,46 @@ def _parse_data_from_soup(soup, show_data=False):
 
     return data
 
+
+def _parse_data_from_media_page_soup(soup):
+    """  """
+    
+    data = {}
+    topMatter = soup.find('div', {'class' : 'top-matter'})
+
+    data['date_created'] = topMatter.find('time')['datetime'][:10]
+    
+    titleEl = topMatter.find('a', {'class' : 'title'})
+    data['title'] = titleEl.text.strip()
+    data['url'] = titleEl['href']
+    
+    comments = _get_reddit_comments(soup)
+    data['comments'] = comments
+
+    return data
+
+
+def _get_reddit_comments(soup):
+    comments = []
+    # print(len(soup.select('.commentarea .entry')))
+    comment_els = soup.select('.commentarea .entry')
+    print('comment els:', len(comment_els))
+    for el in comment_els:
+        
+        try:
+            comment_html = el.select_one('.md').prettify()
+            author_el = el.select_one('a.author')
+            author = author_el.text.strip()
+            # print(comment_html)
+            author_href = author_el['href']
+            comments.append({
+                'author': author,
+                'author_href': author_href,
+                'comment_html': comment_html,
+            })
+        except:
+            continue
+    return comments
 
 
 def _get_content_html(soup):

@@ -2,7 +2,7 @@ from typing import Any
 import os
 from bs4 import BeautifulSoup as BS
 from pathlib import Path
-from fun.fun import *
+from python_src.fun import *
 
 
 

@@ -15,6 +15,7 @@ def download_post_network_catalogue_pages(root_urls, download_dir, redo_scraping
     handled = 0
     media_links_array = []
     
+    # CATALOGUE PAGES
     print('DOWNLOADING CATALOGUE PAGES')
     catalogue_dir = download_dir + '/catalogue/'
     os.makedirs(catalogue_dir, exist_ok=True)
@@ -65,6 +66,7 @@ def download_post_network_catalogue_pages(root_urls, download_dir, redo_scraping
         # if handled >= 5:
         #     break
 
+    # MEDIA PAGES
     print('DOWNLOADING MEDIA PAGES')
     media_page_dir = download_dir + '/media_page/'
     os.makedirs(media_page_dir, exist_ok=True)
