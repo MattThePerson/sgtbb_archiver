@@ -1,18 +1,19 @@
+
+# general
 __pycache__/
 .venv/
 venv/
 vscode/
 
-site*/
-!site/
+# 
+data/
+cookies/
 site/media
 site/pages
-data/*
-cookies/*
 
+# misc
 test*
 *.ipynb
+.old/
 
 src/
-
-.old/

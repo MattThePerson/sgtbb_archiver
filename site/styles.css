@@ -35,3 +35,21 @@ section.right-section {
     width: auto;
     min-height: 20rem;
 }
+
+/* Media a_el buttons */
+
+a.media-post-button {
+    color: purple;
+    cursor: pointer;
+    background: none;
+}
+
+a.media-post-button.highlighted {
+    background: green;
+}
+
+/* VIDEO PLAYER */
+
+video {
+    width: 100%
+}
