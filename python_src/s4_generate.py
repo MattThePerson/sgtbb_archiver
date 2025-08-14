@@ -21,7 +21,6 @@ def generateHtmlPages(site_root: str, data: dict, media_paths: dict[str, str], r
         data["content_links"] = _getContentLinksCount(content)
         data["dirname"] = _getPostDirname(data)
         
-    
 
     # STEP 2: generate pages
     SIDs_without_pages = set()
@@ -42,6 +41,7 @@ def generateHtmlPages(site_root: str, data: dict, media_paths: dict[str, str], r
         
         # get media data
         media_data = _getMediaData(data["media_links"], media_pages, media_paths)
+        media_data = _processCommentHrefs(media_data, catalogue_pages)
 
         # prune data
         del data["content_links"]
@@ -155,6 +155,28 @@ def _getMediaData(media_links: list[str], media_pages: dict, media_paths: dict) 
     return mp
 
 
+def _processCommentHrefs(media_data: dict[str, dict], catalogue_pages: dict[str, dict]) -> dict[str, dict]:
+    for k, v in media_data.items():
+        cmts = v["comments"]
+        for c in cmts:
+            soup = BeautifulSoup(c["comment_html"], 'html.parser')
+            for a_el in soup.select("a"):
+                href = a_el["href"]
+                if not isinstance(href, str):
+                    continue
+                sid = _getHrefSID(href)
+                if sid == "":
+                    continue
+                page = catalogue_pages.get(sid)
+                if page is None:
+                    continue
+                a_el["href"] = _getLocalPageHref(page["dirname"], sid)
+            c["comment_html"] = soup.prettify()
+        v["comments"] = cmts
+        media_data[k] = v
+    return media_data
+
+
 #region - HELPERS ------------------------------------------------------------------------------------------------------
 
 
@@ -249,7 +271,7 @@ def _getParentTitles(parents: list[str], content_pages: dict) -> dict[str, str]:
 # _getPageHtml
 def _getPageHtml(data: dict, media_data: dict) -> str:
     
-    return  f"""
+    return f"""
         <!DOCTYPE html> <!-- {data['id']} -->
             <html lang="en">
             <head>

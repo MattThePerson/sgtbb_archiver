@@ -1,10 +1,15 @@
 
-
-
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+#app {
+    position: fixed;
+    height: 97vh;
+    /* width: 100%; */
+    inset: 0;
 }
 
 /* HEADER */
@@ -21,22 +26,51 @@ nav {
 
 main {
     display: flex;
+    height: 100%;
 }
 
-/* LEFT SIDE */
-section.left-section {
+/* SECTIONS */
+
+section#left-panel {
     background: orange;
-    width: 50vw;
+    /* width: 40rem; */
+    min-width: 35rem;
     padding: 2rem;
+    height: 100%;
+    overflow-y: scroll;
 }
 
-section.right-section {
+section#media-panel {
     background: purple;
-    width: auto;
-    min-height: 20rem;
+    width: 100%;
+    padding: 1rem 2rem;
+    overflow-y: scroll;
 }
 
-/* Media a_el buttons */
+/* LEFT PANEL */
+
+#left-panel .content {
+    padding-top: 0.8rem;
+}
+
+#left-panel .md > ul {
+    padding-top: 1rem;
+    padding-left: 2rem;
+}
+
+#left-panel li {
+    height: fit-content;
+}
+
+#left-panel a {
+    display: block;
+    background: #0a04;
+    padding: 2px 0.5rem;
+}
+#left-panel a:hover {
+    text-decoration: underline;
+}
+
 
 a.media-post-button {
     color: purple;
@@ -45,11 +79,16 @@ a.media-post-button {
 }
 
 a.media-post-button.highlighted {
-    background: green;
+    background: green !important;
 }
 
-/* VIDEO PLAYER */
+/* MEDIA PANEL */
 
-video {
-    width: 100%
+#media-panel video {
+    width: 100%;
+    max-width: 70rem;
+    max-height: 90vh;
+    background: black;
 }
+
+

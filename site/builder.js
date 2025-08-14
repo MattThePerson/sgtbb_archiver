@@ -53,7 +53,7 @@ function main(page_data, media_data) {
         if (!data) {
             console.error("No media data for sid: "+sid)
         }
-        $("#media-section").html(getMediaPostContent(data))
+        $("#media-panel").html(getMediaPostContent(data))
         $("a.media-post-button").each((i, b) => $(b).removeClass("highlighted"))
         $("a.media-post-button[data-sid="+ sid +"]").addClass("highlighted")
     }
@@ -116,7 +116,7 @@ function getPageContent(data) {
         
         <main>
             <!-- LEFT SIDE -->
-            <section class="left-section">
+            <section id="left-panel">
                 <a href="https://www.reddit.com${data.url}" target="_blank">
                     <h1>${data.title}</h1>
                 </a>
@@ -126,7 +126,7 @@ function getPageContent(data) {
             </section>
         
             <!-- RIGHT SIDE -->
-            <section id="media-section"></section>
+            <section id="media-panel"></section>
 
         </main>
     `
@@ -142,20 +142,32 @@ function getMediaPostContent(data) {
     comment_html = ''
     for (let i = 0; i < data.comments.length; i++) {
         const comment = data.comments[i]
-        comment_html += comment.comment_html;
+        comment_html += /* html */ `
+            <div class="comment">
+                <a href="${comment.author_href.replace("old.", "www.")}" target="_blank">${comment.author}</a>
+                ${comment.comment_html} 
+            </div>
+        `
     }
     
     return /* html */ `
+    
     <a href="${data.reddit_url}" target="_blank">
         <h2>${data.title}</h2>
     </a>
+    
     <div class="player-wrapper">
         <!-- <div id="player"></div> -->
         <video src="${data.local_path}" controls looped
         ></video>
     </div>
-    <div class="comments-section">
-        ${comment_html}
+
+    <div class="into-section">
+        <div class="posted-date">Posted on: ${data.date_created}</div>
+        <div class="comments-section">
+            <h3>Comments:</h3>
+            ${comment_html}
+        </div>
     </div>
     `
 }
